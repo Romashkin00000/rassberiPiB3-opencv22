@@ -8,7 +8,7 @@ from audio_recorder import AudioRecorder
 from plate_detector import PlateDetector
 from telegram_sender import TelegramSender
 
-dotenv.load_dotenv("../config/.env")
+dotenv.load_dotenv("../scr/.env")
 
 BUFFER_SECONDS = 40  # Сколько секунд видео/аудио храним перед сохранением
 FRAME_WIDTH = 640
