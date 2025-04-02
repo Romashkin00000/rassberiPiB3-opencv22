@@ -1,4 +1,3 @@
-
 import os
 import time
 import dotenv
@@ -7,7 +6,7 @@ from video_recorder import VideoRecorder
 from audio_recorder import AudioRecorder
 from plate_detector import PlateDetector
 from telegram_sender import TelegramSender
-
+from env import TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
 dotenv.load_dotenv("../scr/.env")
 
 BUFFER_SECONDS = 40  # Сколько секунд видео/аудио храним перед сохранением
@@ -20,7 +19,7 @@ record_event = Event()
 video_recorder = VideoRecorder(FRAME_WIDTH, FRAME_HEIGHT, FPS, BUFFER_SECONDS)
 audio_recorder = AudioRecorder(BUFFER_SECONDS)
 plate_detector = PlateDetector("models/haarcascade_russian_plate_number.xml")
-telegram_sender = TelegramSender(os.getenv("TELEGRAM_BOT_TOKEN"), os.getenv("TELEGRAM_CHAT_ID"))
+telegram_sender = TelegramSender(os.getenv(TELEGRAM_BOT_TOKEN), os.getenv(TELEGRAM_CHAT_ID))
 
 def start_monitoring():
     audio_thread = Thread(target=audio_recorder.record)
