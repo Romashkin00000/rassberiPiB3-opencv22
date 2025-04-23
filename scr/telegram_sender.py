@@ -7,4 +7,6 @@ class TelegramSender:
 
     def send_video(self, file_path):
         with open(file_path, "rb") as video:
-            self.bot.send_video(self.chat_id, video)
+            self.bot.send_document(self.chat_id, video)  # Отправляем как файл, чтобы не падать на больших размерах
+
+

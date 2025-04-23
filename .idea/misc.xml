@@ -3,4 +3,5 @@
   <component name="Black">
     <option name="sdkName" value="Python 3.13 (project rassberi pi (CV2))" />
   </component>
+  <component name="ProjectRootManager" version="2" project-jdk-name="Remote Python 3.12.3 (sftp://pi3@192.168.1.108:22/home/pi3/.virtualenvs/rassberiPiB3-opencv22/bin/python)" project-jdk-type="Python SDK" />
 </project>

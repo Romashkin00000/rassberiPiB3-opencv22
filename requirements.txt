@@ -1,8 +1,7 @@
 opencv-python
-numpy
-pyaudio
-wave
-picamera2
-ffmpeg-python
+sounddevice
+soundfile
 telebot
 python-dotenv
+numpy
+

@@ -1,8 +1,8 @@
+
+
 import cv2
 import numpy as np
-from picamera2 import Picamera2
 from collections import deque
-
 
 class VideoRecorder:
     def __init__(self, width, height, fps, buffer_seconds):
@@ -10,24 +10,31 @@ class VideoRecorder:
         self.height = height
         self.fps = fps
         self.frame_buffer = deque(maxlen=buffer_seconds * fps)
-        self.camera = Picamera2()
-        self.camera.preview_configuration.main.size = (self.width, self.height)
-        self.camera.preview_configuration.main.format = "RGB888"
-        self.camera.preview_configuration.controls.FrameRate = fps
-        self.camera.configure("preview")
-        self.camera.start()
+        self.cap = cv2.VideoCapture(0)
+
+        if not self.cap.isOpened():
+            raise Exception("Камера не найдена!")
+
+        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.width)
+        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.height)
+        self.cap.set(cv2.CAP_PROP_FPS, self.fps)
 
     def capture_frame(self):
-        frame = self.camera.capture_array()
+        ret, frame = self.cap.read()
+        if not ret:
+            raise Exception("Не удалось получить кадр с камеры!")
         self.frame_buffer.append(frame)
         return frame
 
-    def save_video(self):
-        video_file = "video.h264"
-        out = cv2.VideoWriter(video_file, cv2.VideoWriter_fourcc(*"X264"), self.fps, (self.width, self.height))
+    def save_video(self, output_path="video.mp4"):
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        out = cv2.VideoWriter(output_path, fourcc, self.fps, (self.width, self.height))
 
         for frame in self.frame_buffer:
-            out.write(cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
+            out.write(frame)
 
         out.release()
-        return video_fil
+        return output_path
+
+    def release(self):
+        self.cap.release()

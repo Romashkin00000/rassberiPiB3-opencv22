@@ -1,47 +1,125 @@
-import os
+import cv2
+import pyaudio
+import numpy as np
+import threading
 import time
-import dotenv
-from threading import Thread, Event
-from video_recorder import VideoRecorder
-from audio_recorder import AudioRecorder
-from plate_detector import PlateDetector
-from telegram_sender import TelegramSender
-from env import TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
-dotenv.load_dotenv("../scr/.env")
+import os
+from dotenv import load_dotenv
+import telebot
 
-BUFFER_SECONDS = 40  # Сколько секунд видео/аудио храним перед сохранением
-FRAME_WIDTH = 640
-FRAME_HEIGHT = 480
-FPS = 20
+# Загрузка переменных окружения
+load_dotenv("/home/pi3/cv22/config/.env")
 
-record_event = Event()
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
+SOUND_THRESHOLD = float(os.getenv("SOUND_THRESHOLD", 0.1))
+DEVICE_INDEX = 2  # номер твоего микрофона
+CASCADE_PATH = "/home/pi3/cv22/models/haarcascade_russian_plate_number.xml"
 
-video_recorder = VideoRecorder(FRAME_WIDTH, FRAME_HEIGHT, FPS, BUFFER_SECONDS)
-audio_recorder = AudioRecorder(BUFFER_SECONDS)
-plate_detector = PlateDetector("models/haarcascade_russian_plate_number.xml")
-telegram_sender = TelegramSender(os.getenv(TELEGRAM_BOT_TOKEN), os.getenv(TELEGRAM_CHAT_ID))
+bot = telebot.TeleBot(TELEGRAM_BOT_TOKEN)
 
-def start_monitoring():
-    audio_thread = Thread(target=audio_recorder.record)
-    audio_thread.start()
+# Флаги
+sound_detected = False
+plate_detected = False
+
+# Настройки камеры
+cap = cv2.VideoCapture(0)
+plate_cascade = cv2.CascadeClassifier(CASCADE_PATH)
+
+def monitor_sound():
+    global sound_detected
+    p = pyaudio.PyAudio()
 
     while True:
-        frame = video_recorder.capture_frame()
-        if plate_detector.detect(frame):
-            print("🚗 Обнаружен номер! Сохраняем видео...")
-            save_and_send()
-            break
+        try:
+            stream = p.open(format=pyaudio.paInt16,
+                            channels=1,
+                            rate=44100,
+                            input=True,
+                            input_device_index=DEVICE_INDEX,
+                            frames_per_buffer=1024)
 
-    record_event.set()
-    audio_thread.join()
+            while True:
+                data = np.frombuffer(stream.read(1024, exception_on_overflow=False), dtype=np.int16)
+                volume = np.linalg.norm(data) / 1024
 
-def save_and_send():
-    video_path, audio_path, output_path = video_recorder.save_video(), audio_recorder.save_audio(), "output.mp4"
+                if volume > SOUND_THRESHOLD:
+                    print(f"[SOUND] Громкий звук обнаружен! Громкость: {volume:.3f}")
+                    sound_detected = True
 
-    # Объединяем видео и аудио через ffmpeg
-    os.system(f"ffmpeg -i {video_path} -i {audio_path} -c:v copy -c:a aac {output_path} -y")
+                time.sleep(0.01)
 
-    telegram_sender.send_video(output_path)
+        except Exception as e:
+            print(f"[ERROR] Ошибка со звуком: {e}")
+            time.sleep(2)
+        finally:
+            try:
+                stream.stop_stream()
+                stream.close()
+            except:
+                pass
+
+def monitor_camera():
+    global plate_detected
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            continue
+
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        plates = plate_cascade.detectMultiScale(gray, 1.3, 5)
+
+        if len(plates) > 0:
+            print(f"[PLATE] Обнаружен номерной знак!")
+            plate_detected = True
+
+        # можно показывать картинку для отладки
+        # cv2.imshow("Camera", frame)
+        # if cv2.waitKey(1) & 0xFF == ord('q'):
+        #     break
+
+        time.sleep(0.05)
+
+def save_and_send_video():
+    print("[ACTION] Сохраняю видео 5 секунд...")
+    fourcc = cv2.VideoWriter_fourcc(*'XVID')
+    out = cv2.VideoWriter('output.avi', fourcc, 20.0, (640, 480))
+
+    start_time = time.time()
+    while time.time() - start_time < 5:  # пишем 5 секунд видео
+        ret, frame = cap.read()
+        if ret:
+            out.write(frame)
+
+    out.release()
+
+    print("[ACTION] Отправляю видео в Telegram...")
+    with open('output.avi', 'rb') as video:
+        bot.send_video(TELEGRAM_CHAT_ID, video)
+
+    print("[ACTION] Видео отправлено. Продолжаю работать...")
+
+def main_loop():
+    global sound_detected, plate_detected
+
+    while True:
+        if sound_detected and plate_detected:
+            save_and_send_video()
+            sound_detected = False
+            plate_detected = False
+        else:
+            # если нет совпадения — продолжаем слушать и смотреть
+            time.sleep(0.1)
 
 if __name__ == "__main__":
-    start_monitoring()
+    print("[INFO] Запуск системы мониторинга...")
+
+    # Параллельно запускаем поток звука и поток камеры
+    sound_thread = threading.Thread(target=monitor_sound, daemon=True)
+    camera_thread = threading.Thread(target=monitor_camera, daemon=True)
+
+    sound_thread.start()
+    camera_thread.start()
+
+    # Основной цикл
+    main_loop()
