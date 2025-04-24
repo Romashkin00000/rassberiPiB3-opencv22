@@ -44,13 +44,13 @@ def monitor_sound():
                 volume = np.linalg.norm(data) / 1024
 
                 if volume > SOUND_THRESHOLD:
-                    print(f"[SOUND] Громкий звук обнаружен! Громкость: {volume:.3f}")
+                    print(f"[SOUND] Громкий звук обнаружен: Громкость: {volume:.3f}")
                     sound_detected = True
 
                 time.sleep(0.01)
 
         except Exception as e:
-            print(f"[ERROR] Ошибка со звуком: {e}")
+            print(f"[ERROR] Ошибка (звукк: {e}")
             time.sleep(2)
         finally:
             try:
