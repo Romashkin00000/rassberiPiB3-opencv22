@@ -7,13 +7,13 @@ import os
 from dotenv import load_dotenv
 import telebot
 
-# Загрузка переменных окружения
+# Загрузка env
 load_dotenv("/home/pi3/cv22/config/.env")
 
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 SOUND_THRESHOLD = float(os.getenv("SOUND_THRESHOLD", 0.1))
-DEVICE_INDEX = 2  # номер твоего микрофона
+DEVICE_INDEX = 2  #id микро
 CASCADE_PATH = "/home/pi3/cv22/models/haarcascade_russian_plate_number.xml"
 
 bot = telebot.TeleBot(TELEGRAM_BOT_TOKEN)
@@ -22,7 +22,7 @@ bot = telebot.TeleBot(TELEGRAM_BOT_TOKEN)
 sound_detected = False
 plate_detected = False
 
-# Настройки камеры
+#  камера(параметры)
 cap = cv2.VideoCapture(0)
 plate_cascade = cv2.CascadeClassifier(CASCADE_PATH)
 
@@ -73,10 +73,7 @@ def monitor_camera():
             print(f"[PLATE] Обнаружен номерной знак!")
             plate_detected = True
 
-        # можно показывать картинку для отладки
-        # cv2.imshow("Camera", frame)
-        # if cv2.waitKey(1) & 0xFF == ord('q'):
-        #     break
+        
 
         time.sleep(0.05)
 
@@ -86,7 +83,7 @@ def save_and_send_video():
     out = cv2.VideoWriter('output.avi', fourcc, 20.0, (640, 480))
 
     start_time = time.time()
-    while time.time() - start_time < 5:  # пишем 5 секунд видео
+    while time.time() - start_time < 5:  # пишем n секунд видео (5)
         ret, frame = cap.read()
         if ret:
             out.write(frame)
@@ -108,7 +105,7 @@ def main_loop():
             sound_detected = False
             plate_detected = False
         else:
-            # если нет совпадения — продолжаем слушать и смотреть
+            #  продолжаем слушать и смотреть кадры
             time.sleep(0.1)
 
 if __name__ == "__main__":
